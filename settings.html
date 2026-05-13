@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ตั้งค่าการเชื่อมต่อ - ระบบแสดงรายชื่อผู้ป่วยรอตรวจ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page-settings">
+
+  <div class="settings-container">
+
+    <!-- หัวหน้า -->
+    <div class="settings-topbar">
+      <button class="btn-back" onclick="location.href='index.html'" title="กลับ">&#8592;</button>
+      <h1 class="settings-page-title">&#9881; ตั้งค่าการเชื่อมต่อฐานข้อมูล</h1>
+    </div>
+
+    <!-- การ์ดหลัก -->
+    <div class="settings-card">
+
+      <!-- เลือกประเภทฐานข้อมูล -->
+      <p class="section-label">ประเภทฐานข้อมูล</p>
+      <div class="db-type-grid">
+
+        <div>
+          <input type="radio" name="dbType" id="dbMySQL" value="mysql" class="db-radio" checked />
+          <label for="dbMySQL" class="db-radio-label">
+            <span class="db-badge db-badge-mysql">MySQL</span>
+            MySQL
+          </label>
+        </div>
+
+        <div>
+          <input type="radio" name="dbType" id="dbPostgres" value="postgresql" class="db-radio" />
+          <label for="dbPostgres" class="db-radio-label">
+            <span class="db-badge db-badge-postgres">PG</span>
+            PostgreSQL
+          </label>
+        </div>
+
+      </div>
+
+      <!-- รายละเอียดการเชื่อมต่อ -->
+      <p class="section-label">รายละเอียดการเชื่อมต่อ</p>
+      <div class="form-grid">
+
+        <div class="field-group span-full">
+          <label for="host" class="field-label">IP Server / Host</label>
+          <input type="text" id="host" class="field-input" placeholder="เช่น 192.168.1.10 หรือ localhost" />
+        </div>
+
+        <div class="field-group">
+          <label for="port" class="field-label">Port</label>
+          <input type="number" id="port" class="field-input" placeholder="3306" min="1" max="65535" />
+        </div>
+
+        <div class="field-group">
+          <label for="database" class="field-label">Database</label>
+          <input type="text" id="database" class="field-input" placeholder="ชื่อฐานข้อมูล" />
+        </div>
+
+        <div class="field-group">
+          <label for="dbUser" class="field-label">Username</label>
+          <input type="text" id="dbUser" class="field-input" placeholder="ชื่อผู้ใช้ฐานข้อมูล" autocomplete="off" />
+        </div>
+
+        <div class="field-group">
+          <label for="dbPassword" class="field-label">Password</label>
+          <input type="password" id="dbPassword" class="field-input" placeholder="รหัสผ่านฐานข้อมูล" autocomplete="new-password" />
+        </div>
+
+      </div>
+
+      <!-- ข้อความผลลัพธ์ -->
+      <div id="settingsMsg" class="alert" style="display:none; margin-bottom:16px;"></div>
+
+      <!-- ปุ่มดำเนินการ -->
+      <div class="settings-actions">
+
+        <button class="btn btn-outline" id="testBtn">
+          &#128268; ทดสอบการเชื่อมต่อ
+        </button>
+
+        <button class="btn btn-primary" id="saveBtn">
+          &#10003; บันทึกข้อมูลเชื่อมต่อ
+        </button>
+
+      </div>
+
+    </div><!-- /settings-card -->
+  </div><!-- /settings-container -->
+
+  <script>
+    const msgEl   = document.getElementById('settingsMsg');
+    const testBtn = document.getElementById('testBtn');
+    const saveBtn = document.getElementById('saveBtn');
+
+    // ─── Helpers ───────────────────────────────────────────────────────────
+
+    function showMsg(text, type) {
+      msgEl.textContent = text;
+      msgEl.className = `alert alert-${type}`;
+      msgEl.style.display = 'block';
+    }
+
+    function getSelectedDbType() {
+      return document.querySelector('input[name="dbType"]:checked').value;
+    }
+
+    function getFormData() {
+      return {
+        dbType:     getSelectedDbType(),
+        host:       document.getElementById('host').value.trim(),
+        port:       document.getElementById('port').value.trim(),
+        database:   document.getElementById('database').value.trim(),
+        dbUser:     document.getElementById('dbUser').value.trim(),
+        dbPassword: document.getElementById('dbPassword').value,
+      };
+    }
+
+    function validate(data) {
+      if (!data.host)     return 'กรุณาใส่ IP Server / Host';
+      if (!data.port)     return 'กรุณาใส่ Port';
+      if (!data.database) return 'กรุณาใส่ชื่อ Database';
+      if (!data.dbUser)   return 'กรุณาใส่ Username';
+      return null;
+    }
+
+    // ─── โหลดค่าที่บันทึกไว้ ───────────────────────────────────────────────
+
+    async function loadSaved() {
+      try {
+        const res  = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.dbType) {
+          const radio = document.querySelector(`input[name="dbType"][value="${data.dbType}"]`);
+          if (radio) radio.checked = true;
+          updateDefaultPort();
+        }
+        if (data.host)     document.getElementById('host').value     = data.host;
+        if (data.port)     document.getElementById('port').value     = data.port;
+        if (data.database) document.getElementById('database').value = data.database;
+        if (data.dbUser)   document.getElementById('dbUser').value   = data.dbUser;
+        if (data.hasDbPassword) {
+          document.getElementById('dbPassword').placeholder = '(รหัสผ่านถูกบันทึกไว้แล้ว — เว้นว่างถ้าไม่ต้องการเปลี่ยน)';
+        }
+      } catch {}
+    }
+
+    // ─── Port default ตามประเภท DB ────────────────────────────────────────
+
+    function updateDefaultPort() {
+      const portEl = document.getElementById('port');
+      if (portEl.value) return; // ไม่เปลี่ยนถ้ามีค่าอยู่แล้ว
+      portEl.placeholder = getSelectedDbType() === 'mysql' ? '3306' : '5432';
+    }
+
+    document.querySelectorAll('input[name="dbType"]').forEach(r => {
+      r.addEventListener('change', updateDefaultPort);
+    });
+
+    // ─── ทดสอบการเชื่อมต่อ ────────────────────────────────────────────────
+
+    testBtn.addEventListener('click', async () => {
+      msgEl.style.display = 'none';
+      const data = getFormData();
+      const err  = validate(data);
+      if (err) { showMsg(err, 'error'); return; }
+
+      // ถ้า password ว่างให้ใช้ค่าที่บันทึกไว้ (server จะจัดการ)
+      testBtn.disabled = true;
+      testBtn.textContent = 'กำลังทดสอบ...';
+      try {
+        const res  = await fetch('/api/test-connection', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(data),
+        });
+        const resp = await res.json();
+        showMsg(resp.message || (resp.ok ? 'เชื่อมต่อสำเร็จ' : 'เชื่อมต่อไม่สำเร็จ'), resp.ok ? 'success' : 'error');
+      } catch {
+        showMsg('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+      } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '&#128268; ทดสอบการเชื่อมต่อ';
+      }
+    });
+
+    // ─── บันทึกข้อมูลเชื่อมต่อ ────────────────────────────────────────────
+
+    saveBtn.addEventListener('click', async () => {
+      msgEl.style.display = 'none';
+      const data = getFormData();
+      const err  = validate(data);
+      if (err) { showMsg(err, 'error'); return; }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'กำลังบันทึก...';
+      try {
+        const res  = await fetch('/api/settings', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(data),
+        });
+        const resp = await res.json();
+        if (resp.ok) {
+          showMsg('บันทึกข้อมูลเรียบร้อยแล้ว กำลังกลับไปหน้าเข้าสู่ระบบ...', 'success');
+          setTimeout(() => { location.href = 'index.html'; }, 1200);
+        } else {
+          showMsg('เกิดข้อผิดพลาด: ' + (resp.message || 'ไม่สามารถบันทึกได้'), 'error');
+        }
+      } catch {
+        showMsg('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '&#10003; บันทึกข้อมูลเชื่อมต่อ';
+      }
+    });
+
+    // ─── Init ──────────────────────────────────────────────────────────────
+    updateDefaultPort();
+    loadSaved();
+  </script>
+
+</body>
+</html>

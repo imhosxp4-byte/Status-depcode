@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ - ระบบแสดงรายชื่อผู้ป่วยรอตรวจ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page-login">
+
+  <div class="login-card">
+
+    <!-- ส่วนหัว -->
+    <div class="login-card-top">
+      <div class="login-logo-wrap">H+</div>
+      <h1 class="login-title">ระบบแสดงรายชื่อผู้ป่วยรอตรวจ</h1>
+      <p class="login-subtitle">หน้าห้องตรวจ</p>
+    </div>
+
+    <!-- ฟอร์มล็อกอิน -->
+    <div class="login-card-body">
+      <form id="loginForm" autocomplete="off" novalidate>
+
+        <div class="field-group">
+          <label for="username" class="field-label">ชื่อผู้ใช้งาน</label>
+          <input
+            type="text"
+            id="username"
+            class="field-input"
+            placeholder="กรุณาใส่ชื่อผู้ใช้งาน"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="password" class="field-label">รหัสผ่าน</label>
+          <input
+            type="password"
+            id="password"
+            class="field-input"
+            placeholder="กรุณาใส่รหัสผ่าน"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <div id="loginMsg" class="alert" style="display:none; margin-bottom:16px;"></div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
+          เข้าสู่ระบบ
+        </button>
+
+      </form>
+    </div>
+
+    <!-- ปุ่มตั้งค่า -->
+    <div class="login-card-footer">
+      <button class="btn btn-ghost" onclick="location.href='settings.html'">
+        &#9881; ตั้งค่าการเชื่อมต่อ
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    const form     = document.getElementById('loginForm');
+    const msgEl    = document.getElementById('loginMsg');
+    const loginBtn = document.getElementById('loginBtn');
+
+    function showMsg(text, type) {
+      msgEl.textContent = text;
+      msgEl.className = `alert alert-${type}`;
+      msgEl.style.display = 'block';
+    }
+
+    function setLoading(on) {
+      loginBtn.disabled = on;
+      loginBtn.textContent = on ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msgEl.style.display = 'none';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        showMsg('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res  = await fetch('/api/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          location.href = 'status.html';
+        } else {
+          showMsg(data.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
+        }
+      } catch {
+        showMsg('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ', 'error');
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+
+</body>
+</html>

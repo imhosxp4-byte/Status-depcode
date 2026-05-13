@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สถานะผู้ป่วยรอรับบริการ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Sarabun:wght@300;400;500;600;700;800&family=Prompt:wght@300;400;500;600;700;800;900&family=Mitr:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Tokens ─────────────────────────────────────────────────────────── */
+    :root {
+      --radius: 12px; --radius-sm: 8px;
+      --font: 'Kanit', 'Segoe UI', Tahoma, sans-serif;
+      --c-waiting-bg:#EBF8FF; --c-waiting-text:#1A56A4; --c-waiting-dot:#3182CE;
+      --c-inroom-bg: #E6FFFA; --c-inroom-text: #135E62; --c-inroom-dot: #0E7490;
+      --c-done-bg:   #F0FFF4; --c-done-text:   #1A5E35; --c-done-dot:   #38A169;
+      --c-paying-bg: #FFF7ED; --c-paying-text: #9A3412; --c-paying-dot: #EA580C;
+      --c-null-bg:   #F1F5F9; --c-null-text:   #475569; --c-null-dot:   #94A3B8;
+      --acc-waiting: #3182CE; --acc-inroom: #0E7490;
+      --acc-done:    #38A169; --acc-paying: #EA580C; --acc-null: #94A3B8;
+
+      /* ── Customizable theme variables ── */
+      --th-bg1: #1761B8;
+      --th-bg2: #1055A4;
+      --th-card-bg: #DBEAFE;
+      --th-card-border: #93C5FD;
+      --th-qn-color1: #F59E0B;
+      --th-qn-color2: #D97706;
+      --th-qn-text: #ffffff;
+      --th-hn-color: #1D4ED8;
+      --th-name-color: #0F2D5A;
+      --th-dept-color: #0F2D5A;
+      --th-header-color: rgba(255,255,255,0.85);
+
+      --th-fs-card: 7vh;
+      --th-fs-dept: 3.1vh;
+      --th-fs-status: 2.8vh;
+      --th-fs-header: 1.15rem;
+      --th-fs-kpi: 2.8rem;
+      --th-fs-kpi-label: 0.82rem;
+      --th-fs-lab: 1.5vh;
+      --th-fs-site: 1.5rem;
+
+      /* Room selection overlay */
+      --th-room-bg1: #080F22;
+      --th-room-bg2: #0A1B3B;
+      --th-room-card-bg: #0F1B35;
+      --th-room-card-border: #2a3a5c;
+      --th-room-card-text: #F1F5F9;
+    }
+
+    /* ─── Reset / layout ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100vh; overflow: hidden; }
+    body {
+      font-family: var(--font);
+      background: linear-gradient(145deg, var(--th-bg1) 0%, var(--th-bg2) 50%, var(--th-bg1) 100%);
+      display: flex; flex-direction: column;
+    }
+
+    /* ─── TOP BAR ────────────────────────────────────────────────────────── */
+    .top-bar {
+      flex-shrink: 0; height: 60px;
+      background: rgba(255,255,255,0.82); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(30,80,160,0.12);
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 16px rgba(30,80,160,0.10); z-index: 10;
+    }
+    .top-bar-left  { display: flex; align-items: center; gap: 12px; }
+    .top-bar-right { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #2563EB, #0891B2);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; font-weight: 700; color: #fff;
+      box-shadow: 0 3px 12px rgba(37,99,235,0.35); flex-shrink: 0;
+    }
+    .site-name { font-size: var(--th-fs-site); font-weight: 700; color: #1E3A5F; }
+    .site-sub  { font-size: 0.68rem; color: #64748B; }
+
+    /* room badge in top bar */
+    .room-badge-bar {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(37,99,235,0.10); border: 1.5px solid rgba(37,99,235,0.30);
+      border-radius: 20px; padding: 4px 12px 4px 8px;
+      font-size: 0.8rem; font-weight: 600; color: #1D4ED8;
+    }
+    .room-badge-bar .rb-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #2563EB; animation: livepulse 2s ease-in-out infinite;
+    }
+
+    .btn-change-room {
+      height: 34px; padding: 0 14px; border-radius: 8px;
+      background: rgba(30,80,160,0.07); border: 1.5px solid rgba(30,80,160,0.18);
+      color: #475569; font-family: var(--font);
+      font-size: 0.78rem; font-weight: 500; cursor: pointer; transition: all .18s;
+    }
+    .btn-change-room:hover { background: rgba(37,99,235,0.10); color: #1D4ED8; border-color: rgba(37,99,235,0.35); }
+
+    .btn-settings {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: rgba(30,80,160,0.07); border: 1.5px solid rgba(30,80,160,0.18);
+      color: #475569; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .18s;
+    }
+    .btn-settings:hover { background: rgba(37,99,235,0.10); color: #1D4ED8; border-color: rgba(37,99,235,0.35); }
+
+    .clock-box { text-align: right; }
+    .clock-time { font-size: 1.5rem; font-weight: 700; color: #1E3A5F; letter-spacing: 2px; line-height: 1; }
+    .clock-date { font-size: 0.68rem; color: #64748B; margin-top: 2px; }
+
+    /* ─── KPI BAR ────────────────────────────────────────────────────────── */
+    .kpi-bar {
+      flex-shrink: 0; display: flex; gap: 12px;
+      padding: 12px 24px;
+      background: rgba(0,0,0,0.22);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .kpi-card {
+      flex: 1; border-radius: var(--radius); padding: 14px 20px;
+      display: flex; align-items: center; gap: 14px;
+      border: none; position: relative; overflow: hidden;
+      transition: transform .20s, box-shadow .20s;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.30);
+    }
+    .kpi-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: rgba(255,255,255,0.40);
+    }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.40); }
+    .kpi-card.all     { background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%); }
+    .kpi-card.waiting { background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); }
+    .kpi-card.inroom  { background: linear-gradient(135deg, #0891B2 0%, #0C6C8A 100%); }
+    .kpi-card.done    { background: linear-gradient(135deg, #16A34A 0%, #15803D 100%); }
+    .kpi-card.paying  { background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%); }
+    .kpi-dot {
+      width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 700;
+      background: rgba(255,255,255,0.20); color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.35);
+    }
+    .kpi-num   { font-size: var(--th-fs-kpi); font-weight: 800; color: #fff; line-height: 1; display: block; }
+    .kpi-label { font-size: var(--th-fs-kpi-label); font-weight: 500; color: rgba(255,255,255,0.80); margin-top: 4px; display: block; white-space: nowrap; }
+
+    /* ─── FILTER BAR ─────────────────────────────────────────────────────── */
+    .filter-bar {
+      flex-shrink: 0; padding: 10px 24px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 14px;
+      border: 2px solid rgba(30,80,160,0.30); border-radius: 50%; pointer-events: none;
+    }
+    .search-icon::after {
+      content: ''; position: absolute; width: 5px; height: 2px;
+      background: rgba(30,80,160,0.30); bottom: -4px; right: -4px;
+      transform: rotate(45deg); border-radius: 1px;
+    }
+    .search-input {
+      width: 100%; height: 36px; padding: 0 12px 0 34px;
+      border: 1.5px solid rgba(30,80,160,0.20); border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.75); color: #1E293B;
+      font-family: var(--font); font-size: 0.85rem;
+      outline: none; transition: border-color .18s, background .18s;
+    }
+    .search-input:focus { border-color:#3B82F6; background:#fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+    .search-input::placeholder { color: #94A3B8; }
+    .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+    .pill {
+      height: 32px; padding: 0 13px; border-radius: 16px;
+      border: 1.5px solid rgba(30,80,160,0.18);
+      background: rgba(255,255,255,0.65); color: #475569;
+      font-family: var(--font); font-size: 0.78rem; font-weight: 500;
+      cursor: pointer; transition: all .18s; white-space: nowrap;
+    }
+    .pill:hover { border-color:#3B82F6; color:#1D4ED8; background:rgba(59,130,246,0.08); }
+    .pill.active { background:#2563EB; color:#fff; border-color:transparent; font-weight:600; box-shadow:0 2px 8px rgba(37,99,235,0.30); }
+
+    /* ─── TABLE HEADER ────────────────────────────────────────────────────── */
+    .tbl-head {
+      flex-shrink: 0; display: grid;
+      grid-template-columns: 140px 430px 1fr 90px 220px 200px;
+      padding: 0 24px; margin-bottom: 4px;
+    }
+    .tbl-head > div {
+      padding: 10px 16px;
+      font-size: var(--th-fs-header); font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--th-header-color);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ─── PAGE PROGRESS ──────────────────────────────────────────────────── */
+    .page-progress {
+      flex-shrink: 0; height: 2px; margin: 0 24px 4px;
+      background: rgba(255,255,255,0.20); border-radius: 1px; overflow: hidden;
+    }
+    .page-progress-fill {
+      height: 100%; background: linear-gradient(90deg, #3B82F6, #06B6D4);
+      border-radius: 1px; transition: width 1s linear;
+    }
+
+    /* ─── LIST VIEWPORT ──────────────────────────────────────────────────── */
+    .list-viewport { flex: 1; overflow: hidden; position: relative; padding: 0 24px; }
+    .inner-list {
+      display: flex; flex-direction: column; gap: 5px;
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+    /* ─── PATIENT CARD ────────────────────────────────────────────────────── */
+    .patient-card {
+      flex-shrink: 0; background: var(--th-card-bg); border-radius: var(--radius);
+      box-shadow: 0 2px 10px rgba(30,80,160,0.12), 0 1px 3px rgba(30,80,160,0.08);
+      display: grid; grid-template-columns: 140px 430px 1fr 90px 220px 200px;
+      align-items: center; border-left: 7px solid var(--acc-null);
+      overflow: hidden; transition: box-shadow .18s, transform .12s; cursor: default;
+    }
+    .patient-card:hover {
+      box-shadow: 0 4px 18px rgba(30,80,160,0.18), 0 2px 6px rgba(30,80,160,0.10);
+      transform: translateX(2px);
+    }
+    .patient-card.s-waiting { border-left-color: var(--acc-waiting); }
+    .patient-card.s-inroom  { border-left-color: var(--acc-inroom); }
+    .patient-card.s-done    { border-left-color: var(--acc-done); }
+    .patient-card.s-paying  { border-left-color: var(--acc-paying); }
+    .patient-card.s-null    { border-left-color: var(--acc-null); }
+
+    .col-qn, .col-hn, .col-name, .col-lab, .col-dept, .col-status { padding: 0 12px; }
+    .col-qn   { display: flex; align-items: center; justify-content: center; }
+    .col-hn   { display: flex; align-items: center; justify-content: flex-start; }
+    .col-name { padding-left: 24px; overflow: hidden; }
+    .col-lab  { display: flex; align-items: center; justify-content: center; }
+
+    /* ─── Lab badge ──────────────────────────────────────────────────────── */
+    .lab-badge {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: var(--th-fs-lab); font-weight: 800; letter-spacing: 0.5px;
+      white-space: nowrap; font-family: var(--font); line-height: 1.3;
+    }
+    .lab-badge svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
+    .lb-y {
+      background: linear-gradient(135deg, #0EA5E9, #0284C7);
+      color: #ffffff; box-shadow: 0 2px 8px rgba(14,165,233,0.4);
+    }
+    .lb-done {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #ffffff; box-shadow: 0 2px 8px rgba(16,185,129,0.4);
+    }
+    .lb-n {
+      background: rgba(239,68,68,0.12); color: #EF4444;
+      border: 1.5px solid rgba(239,68,68,0.35);
+    }
+
+    .qn-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.5em; padding: 0 12px;
+      background: linear-gradient(135deg, var(--th-qn-color1), var(--th-qn-color2));
+      border-radius: 14px;
+      font-size: var(--th-fs-card); font-weight: 900;
+      color: var(--th-qn-text); font-family: var(--font);
+      box-shadow: 0 4px 14px rgba(245,158,11,0.45);
+      white-space: nowrap;
+    }
+
+    /* hide-qn toggle */
+    body.hide-qn .col-qn            { display: none; }
+    body.hide-qn .th-qn-h          { display: none; }
+    body.hide-qn .tbl-head          { grid-template-columns: 430px 1fr 90px 220px 200px; }
+    body.hide-qn .patient-card      { grid-template-columns: 430px 1fr 90px 220px 200px; }
+
+    /* hide-dept toggle */
+    body.hide-dept .col-dept         { display: none; }
+    body.hide-dept .th-dept-h        { display: none; }
+    body.hide-dept .tbl-head         { grid-template-columns: 140px 430px 1fr 90px 200px; }
+    body.hide-dept .patient-card     { grid-template-columns: 140px 430px 1fr 90px 200px; }
+    body.hide-qn.hide-dept .tbl-head    { grid-template-columns: 430px 1fr 90px 200px; }
+    body.hide-qn.hide-dept .patient-card{ grid-template-columns: 430px 1fr 90px 200px; }
+
+    .hn-val {
+      font-size: var(--th-fs-card); font-weight: 800;
+      color: var(--th-hn-color); font-family: var(--font);
+      display: block; text-align: left;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .patient-name {
+      font-size: var(--th-fs-card); font-weight: 800;
+      color: var(--th-name-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1;
+      letter-spacing: 0.3px;
+    }
+    .col-dept {
+      font-size: var(--th-fs-dept); font-weight: 700;
+      color: var(--th-dept-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .col-status { display: flex; align-items: center; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 28px;
+      font-size: var(--th-fs-status); font-weight: 800; white-space: nowrap;
+    }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    .badge-waiting { background:var(--c-waiting-bg); color:var(--c-waiting-text); }
+    .badge-waiting .status-dot { background:var(--c-waiting-dot); }
+    .badge-inroom  { background:var(--c-inroom-bg);  color:var(--c-inroom-text); }
+    .badge-inroom  .status-dot { background:var(--c-inroom-dot); }
+    .badge-done    { background:var(--c-done-bg);    color:var(--c-done-text); }
+    .badge-done    .status-dot { background:var(--c-done-dot); }
+    .badge-paying  { background:var(--c-paying-bg);  color:var(--c-paying-text); }
+    .badge-paying  .status-dot { background:var(--c-paying-dot); }
+    .badge-null    { background:var(--c-null-bg);    color:var(--c-null-text); }
+    .badge-null    .status-dot { background:var(--c-null-dot); }
+
+    /* ─── STATE BOX ──────────────────────────────────────────────────────── */
+    .state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
+    .state-icon  { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.35; }
+    .state-title { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.60); margin-bottom: 4px; }
+    .state-sub   { font-size: 0.82rem; color: rgba(255,255,255,0.40); }
+
+    /* ─── FOOTER BAR ─────────────────────────────────────────────────────── */
+    .footer-bar {
+      flex-shrink: 0; height: 44px;
+      background: rgba(255,255,255,0.78); backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(30,80,160,0.12);
+      padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .live-indicator { display: flex; align-items: center; gap: 7px; font-size: 0.74rem; color: #64748B; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22C55E; animation: livepulse 2s ease-in-out infinite; }
+    .live-dot.err { background: #EF4444; animation: none; }
+    @keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    .page-dots { display: flex; gap: 6px; align-items: center; }
+    .page-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.30); transition: background .3s, transform .3s; }
+    .page-dot.active { background: #2563EB; transform: scale(1.35); }
+
+    .countdown-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: #94A3B8; }
+    .progress-track { width: 80px; height: 3px; background: rgba(30,80,160,0.18); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3B82F6, #06B6D4); border-radius: 2px; transition: width 1s linear; }
+
+    /* ─── SETTINGS PANEL ─────────────────────────────────────────────────── */
+    /* ─── Settings panel color/font controls ────────────────────────────── */
+    .sp-color-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    }
+    .sp-color-swatch {
+      width: 38px; height: 32px; border-radius: 7px; border: 2px solid rgba(255,255,255,0.18);
+      cursor: pointer; flex-shrink: 0; overflow: hidden; padding: 0;
+      background: none;
+    }
+    .sp-color-swatch input[type="color"] {
+      width: 160%; height: 160%; margin: -30%; border: none; cursor: pointer; background: none;
+      opacity: 0; position: absolute;
+    }
+    .sp-color-swatch-wrap {
+      position: relative; width: 38px; height: 32px; border-radius: 7px;
+      border: 2px solid rgba(255,255,255,0.18); overflow: hidden; cursor: pointer; flex-shrink: 0;
+    }
+    .sp-color-swatch-wrap input[type="color"] {
+      position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px);
+      border: none; cursor: pointer; padding: 0;
+    }
+    .sp-color-label { font-size: 0.82rem; color: rgba(255,255,255,0.68); flex: 1; }
+
+    .sp-slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .sp-slider-label { font-size: 0.78rem; color: rgba(255,255,255,0.55); width: 76px; flex-shrink: 0; line-height: 1.3; }
+    .sp-slider-row input[type="range"] {
+      flex: 1; height: 4px; accent-color: #3B82F6; cursor: pointer;
+      appearance: none; background: rgba(255,255,255,0.15); border-radius: 2px; outline: none;
+    }
+    .sp-slider-row input[type="range"]::-webkit-slider-thumb {
+      appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: #3B82F6; cursor: pointer; border: 2px solid #fff;
+    }
+    .sp-slider-val { font-size: 0.75rem; color: #93C5FD; width: 34px; text-align: right; flex-shrink: 0; }
+    .sp-reset-btn {
+      width: 100%; height: 36px; border-radius: 8px; margin-top: 6px;
+      border: 1.5px solid rgba(255,100,100,0.35); background: rgba(255,80,80,0.08);
+      color: rgba(255,150,150,0.80); font-family: var(--font); font-size: 0.82rem;
+      cursor: pointer; transition: all .18s;
+    }
+    .sp-reset-btn:hover { background: rgba(255,80,80,0.18); border-color: rgba(255,100,100,0.55); color: #FCA5A5; }
+
+    /* ─── Settings panel width ───────────────────────────────────────────── */
+    .settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 210; backdrop-filter: blur(2px); }
+    .settings-overlay.active { display: block; }
+    .settings-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 360px;
+      background: rgba(10,18,42,0.98); backdrop-filter: blur(20px);
+      border-left: 1px solid rgba(255,255,255,0.10);
+      box-shadow: -8px 0 32px rgba(0,0,0,0.55); z-index: 211;
+      transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+    }
+    .settings-panel.active { transform: translateX(0); }
+    .sp-head { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .sp-title { font-size: 0.95rem; font-weight: 600; color: #F1F5F9; }
+    .sp-close { width: 30px; height: 30px; border-radius: 6px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.55); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .18s; }
+    .sp-close:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .sp-body { flex: 1; padding: 22px 20px; overflow-y: auto; }
+    .sp-section { margin-bottom: 26px; }
+    .sp-label { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: rgba(255,255,255,0.35); margin-bottom: 12px; }
+    .sp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sp-chip { height: 34px; padding: 0 14px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.13); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55); font-family: var(--font); font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all .18s; white-space: nowrap; }
+    .sp-chip:hover { border-color: rgba(99,179,237,0.55); color: #93C5FD; }
+    .sp-chip.active { background: #2563EB; color: #fff; border-color: transparent; font-weight: 600; box-shadow: 0 2px 8px rgba(37,99,235,0.40); }
+    .sp-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 4px 0 26px; }
+    .sp-toggle-row {
+      display: flex; align-items: center; gap: 12px; cursor: pointer;
+      padding: 11px 14px; border-radius: 8px;
+      border: 1.5px solid rgba(255,255,255,0.11);
+      background: rgba(255,255,255,0.05); transition: all .18s;
+    }
+    .sp-toggle-row:hover { background: rgba(255,255,255,0.10); border-color: rgba(99,179,237,0.35); }
+    .sp-toggle-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #2563EB; flex-shrink: 0; }
+    .sp-toggle-label { font-size: 0.84rem; color: rgba(255,255,255,0.68); font-weight: 500; line-height: 1.4; }
+
+    /* ─── ROOM SELECTION OVERLAY ─────────────────────────────────────────── */
+    .room-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: linear-gradient(160deg, var(--th-room-bg1) 0%, var(--th-room-bg2) 55%, var(--th-room-bg1) 100%);
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .room-overlay.active { display: flex; }
+
+    .room-modal {
+      width: 100%; max-width: min(1400px, calc(100vw - 40px));
+      max-height: calc(100vh - 40px);
+      background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.10); border-radius: 20px;
+      padding: 28px 32px 24px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+      display: flex; flex-direction: column;
+    }
+    .room-modal-top {
+      display: flex; align-items: center; gap: 18px;
+      margin-bottom: 18px; padding-bottom: 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .room-logo {
+      width: 54px; height: 54px; flex-shrink: 0;
+      background: linear-gradient(135deg, #2563EB, #0891B2); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700; color: #fff;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.45);
+    }
+    .room-modal-title { font-size: 1.5rem; font-weight: 700; color: #F1F5F9; line-height: 1.2; }
+    .room-modal-sub   { font-size: 0.85rem; color: rgba(255,255,255,0.42); margin-top: 5px; }
+
+    /* search */
+    .room-search-wrap {
+      position: relative; flex-shrink: 0; margin-bottom: 14px;
+    }
+    .room-search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      font-size: 1rem; color: rgba(255,255,255,0.35); pointer-events: none;
+    }
+    .room-search-input {
+      width: 100%; height: 42px; padding: 0 14px 0 40px;
+      background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
+      border-radius: 10px; color: #F1F5F9; font-family: var(--font); font-size: 0.95rem;
+      outline: none; transition: border-color .18s, background .18s;
+    }
+    .room-search-input::placeholder { color: rgba(255,255,255,0.28); }
+    .room-search-input:focus { border-color: rgba(59,130,246,0.65); background: rgba(255,255,255,0.10); }
+    .room-no-result { text-align: center; padding: 32px 0; font-size: 0.9rem; color: rgba(255,255,255,0.35); }
+
+    .room-section-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.9px; color: rgba(255,255,255,0.30); margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    /* scrollable area */
+    .room-scroll {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+    }
+    .room-scroll::-webkit-scrollbar { width: 6px; }
+    .room-scroll::-webkit-scrollbar-track { background: transparent; }
+    .room-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+
+    .room-loading { text-align: center; padding: 32px 0; }
+    .room-spin {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.10);
+      border-top-color: #3B82F6; margin: 0 auto 14px;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .room-loading-text { font-size: 0.88rem; color: rgba(255,255,255,0.35); }
+
+    .room-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px; padding-right: 4px;
+    }
+    .room-card {
+      min-height: 76px; padding: 14px 16px; border-radius: 12px;
+      border: 1.5px solid var(--th-room-card-border);
+      background: var(--th-room-card-bg);
+      color: var(--th-room-card-text); font-family: var(--font);
+      font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: all .20s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 5px;
+    }
+    .room-card:hover {
+      background: rgba(37,99,235,0.20); border-color: rgba(59,130,246,0.65);
+      box-shadow: 0 4px 20px rgba(37,99,235,0.28); transform: translateY(-3px);
+      color: #93C5FD;
+    }
+    .room-card-name { font-size: 0.98rem; font-weight: 600; line-height: 1.3; }
+    .room-card-code { font-size: 0.68rem; color: rgba(255,255,255,0.30); font-weight: 400; font-family: 'Courier New', monospace; }
+    .room-card:hover .room-card-code { color: rgba(147,197,253,0.55); }
+
+    .room-error { text-align: center; padding: 28px 0; font-size: 0.88rem; color: #F87171; }
+
+    .room-footer {
+      padding-top: 14px; margin-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .room-all-btn {
+      flex: 1; height: 46px; border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.11);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.42); font-family: var(--font);
+      font-size: 0.88rem; cursor: pointer; transition: all .18s;
+    }
+    .room-all-btn:hover { border-color: rgba(255,255,255,0.24); color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.07); }
+    .room-refresh-btn {
+      width: 46px; height: 46px; border-radius: 10px; flex-shrink: 0;
+      border: 1.5px solid rgba(255,255,255,0.11);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.38); font-size: 1rem;
+      cursor: pointer; transition: all .18s;
+    }
+    .room-refresh-btn:hover { border-color: rgba(59,130,246,0.45); color: #93C5FD; background: rgba(37,99,235,0.12); }
+
+    /* ─── RESPONSIVE ─────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .tbl-head { grid-template-columns: 110px 260px 1fr 70px 160px; }
+      .tbl-head .th-dept-h { display: none; }
+      .patient-card { grid-template-columns: 110px 260px 1fr 70px 160px; }
+      .col-dept { display: none; }
+      body.hide-qn .tbl-head { grid-template-columns: 260px 1fr 70px 160px; }
+      body.hide-qn .patient-card { grid-template-columns: 260px 1fr 70px 160px; }
+      body.hide-dept .tbl-head { grid-template-columns: 110px 260px 1fr 70px 160px; }
+      body.hide-dept .patient-card { grid-template-columns: 110px 260px 1fr 70px 160px; }
+      body.hide-qn.hide-dept .tbl-head { grid-template-columns: 260px 1fr 70px 160px; }
+      body.hide-qn.hide-dept .patient-card { grid-template-columns: 260px 1fr 70px 160px; }
+    }
+    @media (max-width: 600px) {
+      .tbl-head { display: none; }
+      .patient-card { grid-template-columns: 100px 200px 1fr 60px; }
+      .kpi-card .kpi-num { font-size: 1.3rem; }
+      body.hide-qn .patient-card { grid-template-columns: 200px 1fr 60px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── TOP BAR ─── -->
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <div class="logo">H+</div>
+      <div>
+        <div class="site-name">ระบบแสดงรายชื่อผู้ป่วยรอตรวจ</div>
+        <div class="site-sub" id="siteSub">หน้าห้องตรวจ</div>
+      </div>
+    </div>
+    <div class="top-bar-right">
+      <div class="room-badge-bar" id="roomBadgeBar" style="display:none">
+        <span class="rb-dot"></span>
+        <span id="roomBadgeText">—</span>
+      </div>
+      <button class="btn-change-room" onclick="showRoomSelection()">&#8635; เปลี่ยนห้อง</button>
+      <button class="btn-settings" onclick="openSettings()" title="ตั้งค่าการแสดงผล">&#9881;</button>
+      <div class="clock-box">
+        <div class="clock-time" id="clockTime">00:00:00</div>
+        <div class="clock-date" id="clockDate"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── KPI BAR ─── -->
+  <div class="kpi-bar">
+    <div class="kpi-card all">
+      <div class="kpi-dot">&#9673;</div>
+      <div><span class="kpi-num" id="kpiAll">0</span><span class="kpi-label">ทั้งหมด</span></div>
+    </div>
+    <div class="kpi-card waiting">
+      <div class="kpi-dot">&#9711;</div>
+      <div><span class="kpi-num" id="kpiWaiting">0</span><span class="kpi-label">รอตรวจ</span></div>
+    </div>
+    <div class="kpi-card inroom">
+      <div class="kpi-dot">&#9654;</div>
+      <div><span class="kpi-num" id="kpiInroom">0</span><span class="kpi-label">กำลังตรวจ</span></div>
+    </div>
+    <div class="kpi-card done">
+      <div class="kpi-dot">&#10003;</div>
+      <div><span class="kpi-num" id="kpiDone">0</span><span class="kpi-label">ตรวจแล้ว</span></div>
+    </div>
+    <div class="kpi-card paying">
+      <div class="kpi-dot">&#9632;</div>
+      <div><span class="kpi-num" id="kpiPaying">0</span><span class="kpi-label">รอชำระเงิน</span></div>
+    </div>
+  </div>
+
+  <!-- ─── FILTER BAR ─── -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <div class="search-icon"></div>
+      <input type="text" id="searchInput" class="search-input" placeholder="ค้นหา HN, ชื่อ, แผนก..." />
+    </div>
+    <div class="pills" id="pills">
+      <button class="pill active" data-filter="all">ทั้งหมด</button>
+      <button class="pill" data-filter="waiting">รอตรวจ</button>
+      <button class="pill" data-filter="inroom">กำลังตรวจ</button>
+      <button class="pill" data-filter="done">ตรวจแล้ว</button>
+      <button class="pill" data-filter="paying">รอชำระเงิน</button>
+      <button class="pill" data-filter="null">ไม่ระบุสถานะ</button>
+    </div>
+  </div>
+
+  <!-- ─── TABLE HEADER ─── -->
+  <div class="tbl-head">
+    <div class="th-qn-h">QN</div>
+    <div>HN</div>
+    <div>ชื่อ-นามสกุล</div>
+    <div>Lab</div>
+    <div class="th-dept-h">ห้องตรวจ</div>
+    <div>สถานะ</div>
+  </div>
+
+  <!-- ─── PAGE PROGRESS ─── -->
+  <div class="page-progress">
+    <div class="page-progress-fill" id="pageFill" style="width:100%"></div>
+  </div>
+
+  <!-- ─── LIST VIEWPORT ─── -->
+  <div class="list-viewport" id="listViewport">
+    <div class="inner-list" id="innerList">
+      <div class="state-box">
+        <div class="state-icon">&#9203;</div>
+        <div class="state-title">กำลังโหลดข้อมูล...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FOOTER ─── -->
+  <div class="footer-bar">
+    <div class="live-indicator">
+      <span class="live-dot" id="liveDot"></span>
+      <span id="liveText">กำลังเชื่อมต่อ...</span>
+    </div>
+    <div class="page-dots" id="pageDots"></div>
+    <div class="countdown-wrap">
+      <span id="countdownText">โหลดใหม่ใน 30 วิ</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SETTINGS OVERLAY & PANEL ─── -->
+  <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+  <div class="settings-panel" id="settingsPanel">
+    <div class="sp-head">
+      <span class="sp-title">&#9881;&nbsp; ตั้งค่าการแสดงผล</span>
+      <button class="sp-close" onclick="closeSettings()">&#10005;</button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-section">
+        <label class="sp-label">จำนวนแถวต่อหน้า</label>
+        <div class="sp-chips" id="spRows">
+          <button class="sp-chip" data-val="3">3 แถว</button>
+          <button class="sp-chip" data-val="4">4 แถว</button>
+          <button class="sp-chip" data-val="5">5 แถว</button>
+          <button class="sp-chip" data-val="6">6 แถว</button>
+          <button class="sp-chip" data-val="7">7 แถว</button>
+          <button class="sp-chip" data-val="8">8 แถว</button>
+        </div>
+      </div>
+      <hr class="sp-divider" />
+      <div class="sp-section">
+        <label class="sp-label">เวลาเลื่อนหน้าอัตโนมัติ</label>
+        <div class="sp-chips" id="spPageSec">
+          <button class="sp-chip" data-val="0">ปิด</button>
+          <button class="sp-chip" data-val="10">10 วิ</button>
+          <button class="sp-chip" data-val="15">15 วิ</button>
+          <button class="sp-chip" data-val="20">20 วิ</button>
+          <button class="sp-chip" data-val="30">30 วิ</button>
+          <button class="sp-chip" data-val="60">60 วิ</button>
+        </div>
+      </div>
+      <hr class="sp-divider" />
+      <div class="sp-section">
+        <label class="sp-label">ขนาดตัวอักษร</label>
+        <div class="sp-chips" id="spFontSize">
+          <button class="sp-chip" data-val="small">เล็ก</button>
+          <button class="sp-chip" data-val="medium">กลาง</button>
+          <button class="sp-chip" data-val="large">ใหญ่</button>
+        </div>
+      </div>
+      <hr class="sp-divider" />
+      <div class="sp-section">
+        <label class="sp-label">การแสดงผล</label>
+        <label class="sp-toggle-row" style="margin-bottom:10px">
+          <input type="checkbox" id="spShowQN" onchange="onShowQNChange(this.checked)" />
+          <span class="sp-toggle-label">แสดงหมายเลขคิว (QN)<br><span style="font-size:0.74rem;opacity:0.55;">แสดงคอลัมน์ลำดับคิวก่อน HN</span></span>
+        </label>
+        <label class="sp-toggle-row" style="margin-bottom:10px">
+          <input type="checkbox" id="spShowDept" onchange="onShowDeptChange(this.checked)" />
+          <span class="sp-toggle-label">แสดงห้องตรวจ<br><span style="font-size:0.74rem;opacity:0.55;">แสดงคอลัมน์ห้องตรวจ</span></span>
+        </label>
+        <label class="sp-toggle-row">
+          <input type="checkbox" id="spMaskName" onchange="onMaskNameChange(this.checked)" />
+          <span class="sp-toggle-label">ซ่อนนามสกุล 4 ตัวท้าย<br><span style="font-size:0.74rem;opacity:0.55;">เช่น "สมชาย" → "สXXXX"</span></span>
+        </label>
+      </div>
+
+      <hr class="sp-divider" />
+      <!-- ── COLOR THEME ── -->
+      <div class="sp-section">
+        <label class="sp-label">🎨 สีพื้นหลัง</label>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-bg1"><input type="color" id="spBg1" /></div>
+          <span class="sp-color-label">สีหลัก (บน-ล่าง)</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-bg2"><input type="color" id="spBg2" /></div>
+          <span class="sp-color-label">สีกลาง (gradient)</span>
+        </div>
+      </div>
+      <div class="sp-section">
+        <label class="sp-label">🃏 สีการ์ดคนไข้</label>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-cardBg"><input type="color" id="spCardBg" /></div>
+          <span class="sp-color-label">พื้นหลังการ์ด</span>
+        </div>
+      </div>
+      <div class="sp-section">
+        <label class="sp-label">🔤 สีตัวอักษรในการ์ด</label>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-qnC1"><input type="color" id="spQnC1" /></div>
+          <span class="sp-color-label">QN badge (สีต้น)</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-qnC2"><input type="color" id="spQnC2" /></div>
+          <span class="sp-color-label">QN badge (สีปลาย)</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-hn"><input type="color" id="spHnColor" /></div>
+          <span class="sp-color-label">HN</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-name"><input type="color" id="spNameColor" /></div>
+          <span class="sp-color-label">ชื่อคนไข้</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-dept"><input type="color" id="spDeptColor" /></div>
+          <span class="sp-color-label">ห้องตรวจ</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-hdr"><input type="color" id="spHdrColor" /></div>
+          <span class="sp-color-label">หัวคอลัมน์</span>
+        </div>
+      </div>
+
+      <hr class="sp-divider" />
+      <!-- ── ROOM OVERLAY COLORS ── -->
+      <div class="sp-section">
+        <label class="sp-label">🏥 หน้าเลือกห้องตรวจ</label>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-roomBg1"><input type="color" id="spRoomBg1" /></div>
+          <span class="sp-color-label">พื้นหลัง (สีต้น-ปลาย)</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-roomBg2"><input type="color" id="spRoomBg2" /></div>
+          <span class="sp-color-label">พื้นหลัง (สีกลาง)</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-roomCard"><input type="color" id="spRoomCard" /></div>
+          <span class="sp-color-label">พื้นหลังกล่องห้องตรวจ</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-roomBorder"><input type="color" id="spRoomBorder" /></div>
+          <span class="sp-color-label">ขอบกล่องห้องตรวจ</span>
+        </div>
+        <div class="sp-color-row">
+          <div class="sp-color-swatch-wrap" id="sw-roomText"><input type="color" id="spRoomText" /></div>
+          <span class="sp-color-label">ตัวอักษรในกล่อง</span>
+        </div>
+      </div>
+
+      <hr class="sp-divider" />
+      <!-- ── FONT FAMILY ── -->
+      <div class="sp-section">
+        <label class="sp-label">🔡 ฟ้อนต์</label>
+        <div class="sp-chips" id="spFont" style="flex-wrap:wrap;gap:6px">
+          <button class="sp-chip" data-val="Kanit"          style="font-family:'Kanit'">Kanit</button>
+          <button class="sp-chip" data-val="Sarabun"        style="font-family:'Sarabun'">Sarabun</button>
+          <button class="sp-chip" data-val="Prompt"         style="font-family:'Prompt'">Prompt</button>
+          <button class="sp-chip" data-val="Mitr"           style="font-family:'Mitr'">Mitr</button>
+          <button class="sp-chip" data-val="Noto Sans Thai" style="font-family:'Noto Sans Thai'">Noto Sans</button>
+        </div>
+      </div>
+
+      <hr class="sp-divider" />
+      <!-- ── FONT SIZES ── -->
+      <div class="sp-section">
+        <label class="sp-label">📐 ขนาดฟ้อนต์ (vh)</label>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">QN / HN / ชื่อ</span>
+          <input type="range" id="spFsCard" min="3" max="13" step="0.5" value="7" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsCardVal">7</span>
+        </div>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">แผนก</span>
+          <input type="range" id="spFsDept" min="1.5" max="7" step="0.2" value="3.1" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsDeptVal">3.1</span>
+        </div>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">สถานะ</span>
+          <input type="range" id="spFsStatus" min="1.5" max="6" step="0.2" value="2.8" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsStatusVal">2.8</span>
+        </div>
+        <label class="sp-label" style="margin-top:8px">📐 ขนาดฟ้อนต์ (rem)</label>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">หัวคอลัมน์</span>
+          <input type="range" id="spFsHeader" min="0.6" max="2" step="0.05" value="1.15" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsHeaderVal">1.15</span>
+        </div>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">ตัวเลข KPI</span>
+          <input type="range" id="spFsKpi" min="1.2" max="4" step="0.1" value="2.8" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsKpiVal">2.8</span>
+        </div>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">สัญลักษณ์ Lab</span>
+          <input type="range" id="spFsLab" min="0.5" max="5" step="0.1" value="1.5" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsLabVal">1.5</span>
+        </div>
+        <div class="sp-slider-row">
+          <span class="sp-slider-label">ชื่อระบบ</span>
+          <input type="range" id="spFsSite" min="0.6" max="3" step="0.05" value="1.5" oninput="onFsChange()" />
+          <span class="sp-slider-val" id="spFsSiteVal">1.5</span>
+        </div>
+      </div>
+
+      <hr class="sp-divider" />
+      <div class="sp-section">
+        <button class="sp-reset-btn" onclick="resetTheme()">↺ รีเซ็ตธีมเป็นค่าเริ่มต้น</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ROOM SELECTION OVERLAY ─── -->
+  <div class="room-overlay" id="roomOverlay">
+    <div class="room-modal">
+
+      <!-- header -->
+      <div class="room-modal-top">
+        <div class="room-logo">H+</div>
+        <div style="flex:1">
+          <div class="room-modal-title">เลือกห้องตรวจ</div>
+          <div class="room-modal-sub">กรุณาเลือกห้องตรวจเพื่อแสดงรายชื่อผู้ป่วยที่รอรับบริการ</div>
+        </div>
+        <button onclick="openSettings()" title="ตั้งค่าสีและธีม"
+          style="width:42px;height:42px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.15);
+                 background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55);font-size:1.2rem;
+                 cursor:pointer;transition:all .18s;flex-shrink:0;display:flex;align-items:center;justify-content:center;"
+          onmouseover="this.style.background='rgba(255,255,255,0.14)';this.style.color='#fff'"
+          onmouseout="this.style.background='rgba(255,255,255,0.07)';this.style.color='rgba(255,255,255,0.55)'">
+          &#9881;
+        </button>
+      </div>
+
+      <!-- search -->
+      <div class="room-search-wrap">
+        <span class="room-search-icon">&#128269;</span>
+        <input type="text" id="roomSearchInput" class="room-search-input"
+               placeholder="ค้นหาชื่อห้องตรวจ หรือรหัส..." autocomplete="off" />
+      </div>
+
+      <!-- scrollable area -->
+      <div class="room-scroll">
+        <!-- loading -->
+        <div class="room-loading" id="roomLoading">
+          <div class="room-spin"></div>
+          <div class="room-loading-text">กำลังโหลดรายชื่อห้องตรวจ...</div>
+        </div>
+
+        <!-- room cards grid -->
+        <div id="roomSectionLabel" class="room-section-label" style="display:none">ห้องตรวจทั้งหมด</div>
+        <div class="room-grid" id="roomGrid" style="display:none"></div>
+        <div class="room-no-result" id="roomNoResult" style="display:none">ไม่พบห้องตรวจที่ค้นหา</div>
+
+        <!-- error -->
+        <div class="room-error" id="roomError" style="display:none"></div>
+      </div>
+
+      <!-- footer -->
+      <div class="room-footer">
+        <button class="room-all-btn" onclick="selectRoom(null)">
+          &#9776;&nbsp; แสดงทุกห้อง (ไม่กรองห้องตรวจ)
+        </button>
+        <button class="room-refresh-btn" onclick="fetchDepartments()" title="โหลดรายชื่อห้องใหม่">&#8635;</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ─── Constants & State ────────────────────────────────────────────────────
+    const DISP_KEY    = 'statusDisplaySettings';
+    const ROOM_KEY    = 'statusSelectedRoom';
+
+    // ─── Theme ───────────────────────────────────────────────────────────────
+    const THEME_KEY = 'statusTheme';
+    const THEME_DEF = {
+      bg1:'#1761B8', bg2:'#1055A4',
+      cardBg:'#DBEAFE',
+      qnC1:'#F59E0B', qnC2:'#D97706',
+      hnColor:'#1D4ED8', nameColor:'#0F2D5A',
+      deptColor:'#0F2D5A', hdrColor:'#ffffff',
+      fsCard:7, fsDept:3.1, fsStatus:2.8, fsHeader:1.15, fsKpi:2.8, fsLab:1.5, fsSite:1.5,
+      roomBg1:'#080F22', roomBg2:'#0A1B3B',
+      roomCard:'#0F1B35', roomBorder:'#2a3a5c', roomText:'#F1F5F9',
+      fontFamily:'Kanit',
+    };
+    let theme = { ...THEME_DEF };
+
+    function applyTheme() {
+      const r = document.documentElement.style;
+      r.setProperty('--th-bg1',        theme.bg1);
+      r.setProperty('--th-bg2',        theme.bg2);
+      r.setProperty('--th-card-bg',    theme.cardBg);
+      r.setProperty('--th-qn-color1',  theme.qnC1);
+      r.setProperty('--th-qn-color2',  theme.qnC2);
+      r.setProperty('--th-hn-color',   theme.hnColor);
+      r.setProperty('--th-name-color', theme.nameColor);
+      r.setProperty('--th-dept-color', theme.deptColor);
+      r.setProperty('--th-header-color', theme.hdrColor);
+      r.setProperty('--th-fs-card',    theme.fsCard   + 'vh');
+      r.setProperty('--th-fs-dept',    theme.fsDept   + 'vh');
+      r.setProperty('--th-fs-status',  theme.fsStatus + 'vh');
+      r.setProperty('--th-fs-header',  theme.fsHeader + 'rem');
+      r.setProperty('--th-fs-kpi',     theme.fsKpi    + 'rem');
+      r.setProperty('--th-room-bg1',        theme.roomBg1);
+      r.setProperty('--th-room-bg2',        theme.roomBg2);
+      r.setProperty('--th-room-card-bg',    theme.roomCard);
+      r.setProperty('--th-room-card-border',theme.roomBorder);
+      r.setProperty('--th-room-card-text',  theme.roomText);
+      r.setProperty('--th-fs-lab',  theme.fsLab  + 'vh');
+      r.setProperty('--th-fs-site', theme.fsSite + 'rem');
+      r.setProperty('--font', `'${theme.fontFamily}', 'Kanit', sans-serif`);
+    }
+
+    function syncSwatchBg(id, color) {
+      const w = document.getElementById(id);
+      if (w) w.style.background = color;
+    }
+
+    function syncThemeUI() {
+      const set = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+      const val = (id, v, dispId) => { set(id, v); const d = document.getElementById(dispId); if(d) d.textContent = v; };
+      set('spBg1',      theme.bg1);       syncSwatchBg('sw-bg1',    theme.bg1);
+      set('spBg2',      theme.bg2);       syncSwatchBg('sw-bg2',    theme.bg2);
+      set('spCardBg',   theme.cardBg);    syncSwatchBg('sw-cardBg', theme.cardBg);
+      set('spQnC1',     theme.qnC1);      syncSwatchBg('sw-qnC1',   theme.qnC1);
+      set('spQnC2',     theme.qnC2);      syncSwatchBg('sw-qnC2',   theme.qnC2);
+      set('spHnColor',  theme.hnColor);   syncSwatchBg('sw-hn',     theme.hnColor);
+      set('spNameColor',theme.nameColor); syncSwatchBg('sw-name',   theme.nameColor);
+      set('spDeptColor',theme.deptColor); syncSwatchBg('sw-dept',   theme.deptColor);
+      set('spHdrColor', theme.hdrColor);  syncSwatchBg('sw-hdr',    theme.hdrColor);
+      val('spFsCard',   theme.fsCard,   'spFsCardVal');
+      val('spFsDept',   theme.fsDept,   'spFsDeptVal');
+      val('spFsStatus', theme.fsStatus, 'spFsStatusVal');
+      val('spFsHeader', theme.fsHeader, 'spFsHeaderVal');
+      val('spFsKpi',    theme.fsKpi,    'spFsKpiVal');
+      val('spFsLab',    theme.fsLab,    'spFsLabVal');
+      val('spFsSite',   theme.fsSite,   'spFsSiteVal');
+      set('spRoomBg1',   theme.roomBg1);    syncSwatchBg('sw-roomBg1',   theme.roomBg1);
+      set('spRoomBg2',   theme.roomBg2);    syncSwatchBg('sw-roomBg2',   theme.roomBg2);
+      set('spRoomCard',  theme.roomCard);   syncSwatchBg('sw-roomCard',  theme.roomCard);
+      set('spRoomBorder',theme.roomBorder); syncSwatchBg('sw-roomBorder',theme.roomBorder);
+      set('spRoomText',  theme.roomText);   syncSwatchBg('sw-roomText',  theme.roomText);
+      syncChips('spFont', theme.fontFamily || 'Kanit');
+    }
+
+    function loadTheme() {
+      applyTheme();
+    }
+
+    function saveTheme() {
+      pushSettings();
+    }
+
+    function resetTheme() {
+      theme = { ...THEME_DEF };
+      applyTheme(); syncThemeUI(); pushSettings();
+    }
+
+    function onFsChange() {
+      theme.fsCard   = +document.getElementById('spFsCard').value;
+      theme.fsDept   = +document.getElementById('spFsDept').value;
+      theme.fsStatus = +document.getElementById('spFsStatus').value;
+      theme.fsHeader = +document.getElementById('spFsHeader').value;
+      theme.fsKpi    = +document.getElementById('spFsKpi').value;
+      theme.fsLab    = +document.getElementById('spFsLab').value;
+      theme.fsSite   = +document.getElementById('spFsSite').value;
+      document.getElementById('spFsCardVal').textContent   = theme.fsCard;
+      document.getElementById('spFsDeptVal').textContent   = theme.fsDept;
+      document.getElementById('spFsStatusVal').textContent = theme.fsStatus;
+      document.getElementById('spFsHeaderVal').textContent = theme.fsHeader;
+      document.getElementById('spFsKpiVal').textContent    = theme.fsKpi;
+      document.getElementById('spFsLabVal').textContent    = theme.fsLab;
+      document.getElementById('spFsSiteVal').textContent   = theme.fsSite;
+      applyTheme(); saveTheme(); setRowHeights();
+    }
+
+    // wire up color pickers
+    function wireColor(inputId, swatchId, themeKey) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      el.addEventListener('input', e => {
+        theme[themeKey] = e.target.value;
+        syncSwatchBg(swatchId, e.target.value);
+        applyTheme(); saveTheme();
+      });
+    }
+
+    // ─── Display settings ────────────────────────────────────────────────────
+    let ROWS_PER_PAGE = 5;
+    const REFRESH_SEC = 30;
+    let PAGE_SEC      = 30;
+    let fontSizeMode  = 'medium';
+    let maskLastName  = true;
+    let showQN        = true;
+    let showDept      = true;
+
+    let selectedDep = undefined; // undefined=not yet chosen, null=all rooms, {depcode,department}=specific
+
+    let allRows      = [];
+    let filteredRows = [];
+    let activeFilter = 'all';
+    let searchTerm   = '';
+    let currentPage  = 0;
+
+    let refreshCountdown = REFRESH_SEC;
+    let pageCountdown    = PAGE_SEC;
+
+    const listViewport = document.getElementById('listViewport');
+    const innerList    = document.getElementById('innerList');
+
+    // ─── Server-synced Settings ────────────────────────────────────────────────
+    let _pushTimer = null;
+    function pushSettings() {
+      // debounce 300ms (ป้องกันยิงถี่เกินตอนลาก slider)
+      clearTimeout(_pushTimer);
+      _pushTimer = setTimeout(() => {
+        const payload = {
+          theme: { ...theme },
+          display: {
+            rowsPerPage: ROWS_PER_PAGE, pageSec: PAGE_SEC,
+            fontSize: fontSizeMode, maskLastName, showQN, showDept,
+          },
+        };
+        fetch('/api/display-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      }, 300);
+    }
+
+    function applyServerSettings(s, fromSSE = false) {
+      if (s.theme) {
+        Object.assign(theme, s.theme);
+        applyTheme();
+        if (fromSSE) syncThemeUI();
+      }
+      if (s.display) {
+        const d = s.display;
+        if (d.rowsPerPage) ROWS_PER_PAGE = parseInt(d.rowsPerPage);
+        if (d.pageSec !== undefined) PAGE_SEC = parseInt(d.pageSec);
+        if (d.fontSize) fontSizeMode = d.fontSize;
+        if (d.maskLastName !== undefined) maskLastName = !!d.maskLastName;
+        if (d.showQN !== undefined) showQN = !!d.showQN;
+        if (d.showDept !== undefined) showDept = !!d.showDept;
+        applyQNToggle();
+        applyDeptToggle();
+        applyFontSize();
+        if (fromSSE) {
+          syncChips('spRows',     String(ROWS_PER_PAGE));
+          syncChips('spPageSec',  String(PAGE_SEC));
+          syncChips('spFontSize', fontSizeMode);
+          document.getElementById('spMaskName').checked = maskLastName;
+          document.getElementById('spShowQN').checked   = showQN;
+          document.getElementById('spShowDept').checked = showDept;
+          applyFilter(); render(); setRowHeights();
+        }
+      }
+    }
+
+    async function loadSettingsFromServer() {
+      try {
+        const res  = await fetch('/api/display-settings');
+        const data = await res.json();
+        if (data.ok && Object.keys(data.settings).length > 0) {
+          applyServerSettings(data.settings);
+        }
+      } catch {}
+    }
+
+    function startSSE() {
+      const es = new EventSource('/api/display-settings/stream');
+      es.onmessage = e => {
+        try { applyServerSettings(JSON.parse(e.data), true); } catch {}
+      };
+      es.onerror = () => { setTimeout(startSSE, 5000); es.close(); };
+    }
+
+    // ─── Display Settings ─────────────────────────────────────────────────────
+    function loadDisplaySettings() {
+      try {
+        const s = {};
+        if (s.rowsPerPage) ROWS_PER_PAGE = parseInt(s.rowsPerPage);
+        if (s.pageSec !== undefined) PAGE_SEC = parseInt(s.pageSec);
+        if (s.fontSize) fontSizeMode = s.fontSize;
+        if (s.maskLastName !== undefined) maskLastName = !!s.maskLastName;
+        if (s.showQN !== undefined) showQN = !!s.showQN;
+        if (s.showDept !== undefined) showDept = !!s.showDept;
+      } catch {}
+      applyQNToggle();
+      applyDeptToggle();
+      pageCountdown = PAGE_SEC;
+      applyFontSize();
+    }
+
+    function saveDisplaySettings() {
+      pushSettings();
+    }
+
+    function applyQNToggle() {
+      document.body.classList.toggle('hide-qn', !showQN);
+    }
+
+    function onShowQNChange(checked) {
+      showQN = checked;
+      applyQNToggle();
+      saveDisplaySettings();
+    }
+
+    function applyDeptToggle() {
+      document.body.classList.toggle('hide-dept', !showDept);
+    }
+
+    function onShowDeptChange(checked) {
+      showDept = checked;
+      applyDeptToggle();
+      saveDisplaySettings();
+    }
+
+    function applyFontSize() {
+      document.documentElement.style.fontSize =
+        fontSizeMode === 'small' ? '14px' : fontSizeMode === 'large' ? '18px' : '16px';
+    }
+
+    function syncChips(groupId, val) {
+      document.querySelectorAll(`#${groupId} .sp-chip`).forEach(c => {
+        c.classList.toggle('active', c.dataset.val === String(val));
+      });
+    }
+
+    function onMaskNameChange(checked) {
+      maskLastName = checked;
+      saveDisplaySettings();
+      applyFilter(); render();
+    }
+
+    function openSettings() {
+      syncChips('spRows',     String(ROWS_PER_PAGE));
+      syncChips('spPageSec',  String(PAGE_SEC));
+      syncChips('spFontSize', fontSizeMode);
+      document.getElementById('spMaskName').checked = maskLastName;
+      document.getElementById('spShowQN').checked   = showQN;
+      document.getElementById('spShowDept').checked = showDept;
+      syncThemeUI();
+      document.getElementById('settingsPanel').classList.add('active');
+      document.getElementById('settingsOverlay').classList.add('active');
+    }
+    function closeSettings() {
+      document.getElementById('settingsPanel').classList.remove('active');
+      document.getElementById('settingsOverlay').classList.remove('active');
+    }
+
+    document.getElementById('spRows').addEventListener('click', e => {
+      const chip = e.target.closest('.sp-chip');
+      if (!chip) return;
+      ROWS_PER_PAGE = parseInt(chip.dataset.val);
+      syncChips('spRows', chip.dataset.val);
+      saveDisplaySettings();
+      applyFilter(); render();
+    });
+
+    document.getElementById('spPageSec').addEventListener('click', e => {
+      const chip = e.target.closest('.sp-chip');
+      if (!chip) return;
+      PAGE_SEC = parseInt(chip.dataset.val);
+      pageCountdown = PAGE_SEC;
+      syncChips('spPageSec', chip.dataset.val);
+      saveDisplaySettings();
+    });
+
+    document.getElementById('spFontSize').addEventListener('click', e => {
+      const chip = e.target.closest('.sp-chip');
+      if (!chip) return;
+      fontSizeMode = chip.dataset.val;
+      syncChips('spFontSize', chip.dataset.val);
+      applyFontSize();
+      saveDisplaySettings();
+      setRowHeights();
+    });
+
+    document.getElementById('spFont').addEventListener('click', e => {
+      const chip = e.target.closest('.sp-chip');
+      if (!chip) return;
+      theme.fontFamily = chip.dataset.val;
+      syncChips('spFont', chip.dataset.val);
+      applyTheme();
+      pushSettings();
+    });
+
+    // ─── Room Selection ───────────────────────────────────────────────────────
+    function loadRoomFromStorage() {
+      try {
+        if (!localStorage.getItem(ROOM_KEY) && localStorage.getItem('queueSelectedRoom')) {
+          localStorage.setItem(ROOM_KEY, localStorage.getItem('queueSelectedRoom'));
+          localStorage.removeItem('queueSelectedRoom');
+        }
+        const raw = localStorage.getItem(ROOM_KEY);
+        if (raw === null) return false;          // never chosen
+        if (raw === 'all') { selectedDep = null; return true; }
+        selectedDep = JSON.parse(raw);
+        return true;
+      } catch {}
+      return false;
+    }
+
+    function saveRoomToStorage(dep) {
+      selectedDep = dep;
+      localStorage.setItem(ROOM_KEY, dep === null ? 'all' : JSON.stringify(dep));
+    }
+
+    function updateRoomUI() {
+      const badge   = document.getElementById('roomBadgeBar');
+      const badgeTxt = document.getElementById('roomBadgeText');
+      const sub     = document.getElementById('siteSub');
+
+      if (selectedDep) {
+        const name = selectedDep.department || selectedDep.depcode || 'ห้องที่เลือก';
+        sub.textContent      = name;
+        badgeTxt.textContent = name;
+        badge.style.display  = 'flex';
+      } else if (selectedDep === null) {
+        sub.textContent      = 'ทุกห้องตรวจ';
+        badgeTxt.textContent = 'ทุกห้อง';
+        badge.style.display  = 'flex';
+      } else {
+        sub.textContent     = 'หน้าห้องตรวจ';
+        badge.style.display = 'none';
+      }
+    }
+
+    function showRoomSelection() {
+      closeSettings();
+      document.getElementById('roomOverlay').classList.add('active');
+      fetchDepartments();
+    }
+
+    function hideRoomSelection() {
+      document.getElementById('roomOverlay').classList.remove('active');
+    }
+
+    function selectRoom(dep) {
+      saveRoomToStorage(dep);
+      hideRoomSelection();
+      updateRoomUI();
+      fetchStatus();
+    }
+
+    // click on room card (uses data-dep attribute to avoid inline JSON issues)
+    document.getElementById('roomGrid').addEventListener('click', e => {
+      const card = e.target.closest('.room-card');
+      if (!card) return;
+      try { selectRoom(JSON.parse(card.dataset.dep)); } catch {}
+    });
+
+    // ─── Room search ──────────────────────────────────────────────────────────
+    document.getElementById('roomSearchInput').addEventListener('input', e => {
+      const term = e.target.value.trim().toLowerCase();
+      const cards = document.querySelectorAll('#roomGrid .room-card');
+      let visible = 0;
+      cards.forEach(card => {
+        const name = (card.querySelector('.room-card-name')?.textContent || '').toLowerCase();
+        const code = (card.querySelector('.room-card-code')?.textContent || '').toLowerCase();
+        const show = !term || name.includes(term) || code.includes(term);
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      document.getElementById('roomNoResult').style.display = (visible === 0 && cards.length > 0) ? 'block' : 'none';
+    });
+
+    async function fetchDepartments() {
+      const grid     = document.getElementById('roomGrid');
+      const label    = document.getElementById('roomSectionLabel');
+      const loading  = document.getElementById('roomLoading');
+      const errEl    = document.getElementById('roomError');
+      const noResult = document.getElementById('roomNoResult');
+      const searchEl = document.getElementById('roomSearchInput');
+
+      grid.style.display     = 'none';
+      label.style.display    = 'none';
+      loading.style.display  = 'block';
+      errEl.style.display    = 'none';
+      noResult.style.display = 'none';
+      searchEl.value         = '';
+
+      try {
+        const res  = await fetch('/api/departments');
+        const data = await res.json();
+        loading.style.display = 'none';
+
+        if (data.ok && data.rows.length > 0) {
+          grid.innerHTML = data.rows.map(r => {
+            const safe = JSON.stringify(r).replace(/'/g, '&#39;');
+            return `<button class="room-card" data-dep='${safe}'>
+              <span class="room-card-name">${esc(r.department || r.depcode)}</span>
+              <span class="room-card-code">${esc(r.depcode)}</span>
+            </button>`;
+          }).join('');
+          label.style.display = 'block';
+          grid.style.display  = 'grid';
+        } else if (data.ok) {
+          errEl.textContent   = 'ยังไม่มีห้องตรวจที่เปิดใช้งานในขณะนี้';
+          errEl.style.display = 'block';
+        } else {
+          errEl.textContent   = data.message || 'ไม่สามารถดึงรายชื่อห้องตรวจได้';
+          errEl.style.display = 'block';
+        }
+      } catch {
+        loading.style.display = 'none';
+        errEl.textContent     = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+        errEl.style.display   = 'block';
+      }
+    }
+
+    // ─── Status classifier ────────────────────────────────────────────────────
+    function classify(s) {
+      if (!s) return 'null';
+      if (s.includes('ตรวจแล้ว'))                              return 'done';
+      if (s.includes('รอชำระ'))                               return 'paying';
+      if (s.includes('กำลังตรวจ') || s.includes('ในห้องตรวจ')) return 'inroom';
+      if (s.includes('รอ'))                                   return 'waiting';
+      return 'null';
+    }
+
+    function esc(v) {
+      if (!v) return '-';
+      return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const LAB_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M9 3v7l-4 8a1 1 0 00.9 1.5h12.2A1 1 0 0023 18l-4-8V3"/><line x1="7" y1="13" x2="17" y2="13"/></svg>`;
+    const LAB_CANCEL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M9 3v7l-4 8a1 1 0 00.9 1.5h12.2A1 1 0 0023 18l-4-8V3"/><line x1="7" y1="13" x2="17" y2="13"/><line x1="4" y1="4" x2="20" y2="20"/></svg>`;
+
+    const LAB_DONE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M9 3v7l-4 8a1 1 0 00.9 1.5h12.2A1 1 0 0023 18l-4-8V3"/><line x1="7" y1="13" x2="17" y2="13"/><polyline points="9 17 11 19 15 15"/></svg>`;
+
+    function labBadge(lab_receive, has_lab, confirm_report) {
+      if (!has_lab) return '';
+      if (lab_receive === 'N') return `<span class="lab-badge lb-n">${LAB_CANCEL_ICON} ยกเลิก</span>`;
+      if (confirm_report === 'Y') return `<span class="lab-badge lb-done">${LAB_DONE_ICON} Lab</span>`;
+      return `<span class="lab-badge lb-y">${LAB_ICON} Lab</span>`;
+    }
+
+    function maskName(fullName) {
+      if (!maskLastName || !fullName) return fullName;
+      const lastSpace = fullName.lastIndexOf(' ');
+      if (lastSpace === -1 || lastSpace >= fullName.length - 1) return fullName;
+      const lastname = fullName.slice(lastSpace + 1);
+      if (lastname.length <= 4) return fullName;
+      return fullName.slice(0, lastSpace + 1) + lastname.slice(0, -4) + 'XXXX';
+    }
+
+    // ─── KPI ──────────────────────────────────────────────────────────────────
+    function updateKPIs(rows) {
+      const c = { waiting:0, inroom:0, done:0, paying:0, null:0 };
+      rows.forEach(r => c[classify(r.status_name)]++);
+      document.getElementById('kpiAll').textContent     = rows.length;
+      document.getElementById('kpiWaiting').textContent = c.waiting;
+      document.getElementById('kpiInroom').textContent  = c.inroom;
+      document.getElementById('kpiDone').textContent    = c.done;
+      document.getElementById('kpiPaying').textContent  = c.paying;
+    }
+
+    // ─── Filter ───────────────────────────────────────────────────────────────
+    function applyFilter() {
+      const term = searchTerm.toLowerCase();
+      filteredRows = allRows.filter(r => {
+        const matchStatus = activeFilter === 'all' || classify(r.status_name) === activeFilter;
+        const matchSearch = !term ||
+          [r.hn, r.ptname, r.department].some(v => v && String(v).toLowerCase().includes(term));
+        return matchStatus && matchSearch;
+      });
+    }
+
+    // ─── Row height ───────────────────────────────────────────────────────────
+    function calcRowH() {
+      const gap = 5;
+      return (listViewport.clientHeight - gap * (ROWS_PER_PAGE - 1)) / ROWS_PER_PAGE;
+    }
+
+    function setRowHeights() {
+      const h = calcRowH();
+      document.querySelectorAll('.patient-card').forEach(c => { c.style.height = h + 'px'; });
+    }
+
+    // ─── Pagination ───────────────────────────────────────────────────────────
+    function totalPages() { return Math.max(1, Math.ceil(filteredRows.length / ROWS_PER_PAGE)); }
+
+    function goToPage(page, animate, resetCountdown = true) {
+      currentPage = page;
+      if (animate === false) {
+        innerList.style.transition = 'none';
+        requestAnimationFrame(() => {
+          innerList.style.transform = `translateY(-${page * ROWS_PER_PAGE * (calcRowH() + 5)}px)`;
+          requestAnimationFrame(() => { innerList.style.transition = 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)'; });
+        });
+      } else {
+        innerList.style.transition = 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)';
+        innerList.style.transform  = `translateY(-${page * ROWS_PER_PAGE * (calcRowH() + 5)}px)`;
+      }
+      updatePageDots();
+      if (resetCountdown) pageCountdown = PAGE_SEC;
+    }
+
+    function nextPage() {
+      if (totalPages() <= 1) return;
+      goToPage((currentPage + 1) % totalPages());
+    }
+
+    function updatePageDots() {
+      const total = totalPages();
+      document.getElementById('pageDots').innerHTML = total <= 1 ? '' :
+        Array.from({length: total}, (_, i) =>
+          `<span class="page-dot${i === currentPage ? ' active' : ''}"></span>`
+        ).join('');
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
+    function render() {
+      if (filteredRows.length === 0) {
+        innerList.style.transform = 'translateY(0)';
+        innerList.innerHTML = `
+          <div class="state-box">
+            <div class="state-icon">&#128203;</div>
+            <div class="state-title">ไม่พบรายการผู้ป่วย</div>
+            <div class="state-sub">ไม่มีข้อมูลที่ตรงกับเงื่อนไขที่เลือก</div>
+          </div>`;
+        updatePageDots();
+        return;
+      }
+
+      innerList.innerHTML = filteredRows.map(r => {
+        const cls = classify(r.status_name);
+        return `
+          <div class="patient-card s-${cls}">
+            <div class="col-qn">
+              <span class="qn-badge">${esc(r.qn ?? '-')}</span>
+            </div>
+            <div class="col-hn">
+              <span class="hn-val">${esc(r.hn)}</span>
+            </div>
+            <div class="col-name">
+              <div class="patient-name">${esc(maskName(r.ptname))}</div>
+            </div>
+            <div class="col-lab">${labBadge(r.lab_receive, r.has_lab, r.confirm_report)}</div>
+            <div class="col-dept">${esc(r.department)}</div>
+            <div class="col-status">
+              <span class="status-badge badge-${cls}">
+                <span class="status-dot"></span>${esc(r.status_name || 'ไม่ระบุ')}
+              </span>
+            </div>
+          </div>`;
+      }).join('');
+
+      setRowHeights();
+      // คง page ปัจจุบัน ถ้า page เกิน range ให้ไปหน้าสุดท้าย — ไม่ reset pageCountdown
+      const safePage = Math.min(currentPage, totalPages() - 1);
+      goToPage(safePage, false, false);
+    }
+
+    // ─── Fetch ────────────────────────────────────────────────────────────────
+    async function fetchStatus() {
+      const dot  = document.getElementById('liveDot');
+      const live = document.getElementById('liveText');
+
+      // build URL with optional dep filter
+      let url = '/api/status';
+      if (selectedDep && selectedDep.depcode) {
+        url += '?dep=' + encodeURIComponent(selectedDep.depcode);
+      }
+
+      try {
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (data.ok) {
+          allRows = data.rows || [];
+          updateKPIs(allRows);
+          applyFilter();
+          render();
+          dot.className    = 'live-dot';
+          live.textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', {
+            hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+          });
+        } else {
+          showError(data.message || 'ไม่สามารถดึงข้อมูลได้');
+          dot.className = 'live-dot err';
+        }
+      } catch {
+        showError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+        document.getElementById('liveDot').className = 'live-dot err';
+      }
+    }
+
+    function showError(msg) {
+      innerList.innerHTML = `
+        <div class="state-box">
+          <div class="state-icon">&#9888;</div>
+          <div class="state-title">ไม่สามารถโหลดข้อมูลได้</div>
+          <div class="state-sub">${esc(msg)}</div>
+        </div>`;
+    }
+
+    // ─── Clock ────────────────────────────────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clockTime').textContent = now.toLocaleTimeString('th-TH', {
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+      });
+      document.getElementById('clockDate').textContent = now.toLocaleDateString('th-TH', {
+        weekday:'long', day:'numeric', month:'long', year:'numeric',
+      });
+    }
+
+    // ─── Master tick ──────────────────────────────────────────────────────────
+    function tick() {
+      refreshCountdown--;
+      if (refreshCountdown <= 0) { refreshCountdown = REFRESH_SEC; fetchStatus(); }
+      document.getElementById('progressFill').style.width = (refreshCountdown / REFRESH_SEC * 100) + '%';
+      document.getElementById('countdownText').textContent = `โหลดใหม่ใน ${refreshCountdown} วิ`;
+
+      if (totalPages() > 1 && PAGE_SEC > 0) {
+        pageCountdown--;
+        if (pageCountdown <= 0) { pageCountdown = PAGE_SEC; nextPage(); }
+        document.getElementById('pageFill').style.width = (pageCountdown / PAGE_SEC * 100) + '%';
+      } else {
+        document.getElementById('pageFill').style.width = '100%';
+      }
+    }
+
+    // ─── Events ───────────────────────────────────────────────────────────────
+    document.getElementById('pills').addEventListener('click', e => {
+      const pill = e.target.closest('.pill');
+      if (!pill) return;
+      activeFilter = pill.dataset.filter;
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      applyFilter(); render();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', e => {
+      searchTerm = e.target.value.trim();
+      applyFilter(); render();
+    });
+
+    window.addEventListener('resize', setRowHeights);
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    wireColor('spBg1',      'sw-bg1',    'bg1');
+    wireColor('spBg2',      'sw-bg2',    'bg2');
+    wireColor('spCardBg',   'sw-cardBg', 'cardBg');
+    wireColor('spQnC1',     'sw-qnC1',   'qnC1');
+    wireColor('spQnC2',     'sw-qnC2',   'qnC2');
+    wireColor('spHnColor',  'sw-hn',     'hnColor');
+    wireColor('spNameColor','sw-name',   'nameColor');
+    wireColor('spDeptColor','sw-dept',   'deptColor');
+    wireColor('spHdrColor',   'sw-hdr',       'hdrColor');
+    wireColor('spRoomBg1',   'sw-roomBg1',   'roomBg1');
+    wireColor('spRoomBg2',   'sw-roomBg2',   'roomBg2');
+    wireColor('spRoomCard',  'sw-roomCard',  'roomCard');
+    wireColor('spRoomBorder','sw-roomBorder','roomBorder');
+    wireColor('spRoomText',  'sw-roomText',  'roomText');
+
+    // โหลด settings จาก server (sync ทุกเครื่อง) แล้วค่อย start SSE
+    loadSettingsFromServer().then(() => {
+      document.getElementById('spMaskName').checked = maskLastName;
+      document.getElementById('spShowQN').checked   = showQN;
+      document.getElementById('spShowDept').checked = showDept;
+      syncThemeUI();
+    });
+    startSSE();
+
+    updateClock();
+    setInterval(updateClock, 1000);
+    setInterval(tick, 1000);
+
+    const hasRoom = loadRoomFromStorage();
+    updateRoomUI();
+
+    if (hasRoom) {
+      // room already chosen → load status directly
+      fetchStatus();
+    } else {
+      // first time → show room selection screen
+      showRoomSelection();
+    }
+  </script>
+
+</body>
+</html>
